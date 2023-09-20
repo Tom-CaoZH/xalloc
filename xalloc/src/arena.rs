@@ -1,6 +1,8 @@
 use std::os::raw::{c_char, c_void};
 use std::ptr;
 use libc::{MAP_PRIVATE, MAP_ANONYMOUS, MPOL_BIND};
+use std::ffi::CString;
+use std::sync::{Once, ONCE_INIT, Mutex};
 
 // Define the xalloc structure (assuming it's a pointer)
 struct xalloc;
@@ -43,9 +45,14 @@ struct xalloc_dax_kmem_closest_numanode_t;
 // Define the pthread_once_t structure (assuming it's defined elsewhere)
 struct pthread_once_t;
 
-// Define the memkind_stat_type (assuming it's an enum)
-enum memkind_stat_type {
+// Define the xalloc_stat_type (assuming it's an enum)
+enum xalloc_stat_type {
     // Define the stat types here
+}
+
+struct extent_hooks_t {
+    // Define the fields in extent_hooks_t
+    // ...
 }
 
 // Define the xalloc_arena_destroy function
@@ -112,6 +119,116 @@ fn log_err(message: &str) {
     // Replace this implementation with your logic
     unimplemented!()
 }
+
+pub fn xalloc_default_create(kind: *mut Memkind, ops: *mut MemkindOps, name: &str) -> i32 {
+    let err: i32;
+    unsafe {
+        (*kind).ops = ops;
+        if name.len() >= MEMKIND_NAME_LENGTH_PRIV {
+            (*kind).name[0] = 0;
+            err = MEMKIND_ERROR_INVALID; // You need to define MEMKIND_ERROR_INVALID
+        } else {
+            let name_bytes = name.as_bytes();
+            std::ptr::copy_nonoverlapping(
+                name_bytes.as_ptr(),
+                (*kind).name.as_mut_ptr(),
+                name_bytes.len(),
+            );
+            (*kind).name[name_bytes.len()] = 0; // Null-terminate the string
+            err = 0; // No error
+        }
+    }
+    err
+}
+
+pub fn memkind_arena_create_map(kind: *mut Memkind, hooks: *mut extent_hooks_t) -> c_int {
+    // Initialize arena configuration once
+    ARENA_REGISTRY_WRITE_LOCK.call_once(|| {
+        arena_config_init();
+    });
+
+    // Check if arena initialization has already occurred
+    unsafe {
+        if ARENA_INIT_STATUS != 0 {
+            return ARENA_INIT_STATUS;
+        }
+    }
+
+    // Set arena map length for the kind
+    let err = memkind_set_arena_map_len(kind);
+    if err != 0 {
+        return err;
+    }
+
+    // Optionally, create a thread-specific key if the get_arena function is memkind_thread_get_arena
+    // Note: You may need to adapt this part based on your actual code
+    unsafe {
+        if (*kind).ops.get_arena == Some(memkind_thread_get_arena) {
+            // Create a pthread key if needed
+            // pthread_key_create(&(*kind).arena_key, Some(free));
+        }
+    }
+
+    // Lock the arena registry write lock (assuming you have a Mutex)
+    let _lock = ARENA_REGISTRY_WRITE_LOCK.lock();
+
+    // Create arenas and set extent_hooks
+    unsafe {
+        let mut arena_zero = UINT_MAX;
+
+        for i in 0..(*kind).arena_map_len {
+            let mut arena_index: u32 = 0;
+
+            // Create a new arena with consecutive index
+            let result = jemk_mallctl(
+                CString::new("arenas.create").unwrap().as_ptr(),
+                &mut arena_index as *mut _ as *mut c_void,
+                std::ptr::null_mut(),
+                0,
+            );
+
+            if result != 0 {
+                // Handle the error as needed
+                // log_err("Could not create arena.");
+                return MEMKIND_ERROR_ARENAS_CREATE;
+            }
+
+            // Store the arena with the lowest index
+            if arena_zero > arena_index {
+                arena_zero = arena_index;
+            }
+
+            // Setup extent_hooks for the newly created arena
+            let cmd = format!("arena.{}.extent_hooks", arena_index);
+            let cmd_cstr = CString::new(cmd).unwrap();
+
+            let extent_hooks_ptr = &hooks as *const *mut extent_hooks_t;
+
+            let result = jemk_mallctl(
+                cmd_cstr.as_ptr(),
+                ptr::null_mut(),
+                ptr::null_mut(),
+                extent_hooks_ptr as *mut c_void,
+                std::mem::size_of::<*mut extent_hooks_t>(),
+            );
+
+            if result != 0 {
+                // Handle the error as needed
+                return result;
+            }
+
+            // Store the reference to the kind in the arena registry
+            ARENA_REGISTRY_G[arena_index as usize] = Some(kind);
+        }
+
+        // Optionally, set the arena_zero field in the Memkind struct
+        (*kind).arena_zero = arena_zero;
+    }
+
+    // Return success (0) if everything went well
+    0
+}
+
 
 // Implement the xalloc_arena_create function
 extern "C" fn xalloc_arena_create(kind: *mut xalloc, ops: *mut xalloc_ops, name: *const c_char) -> i32 {
@@ -240,7 +357,7 @@ fn xalloc_dax_kmem_get_mbind_nodemask(kind: *mut xalloc, nodemask: *mut u64, max
 
 // Implement the xalloc_dax_kmem_init_once function
 fn xalloc_dax_kmem_init_once() {
-    xalloc_init(MEMKIND_DAX_KMEM, true);
+    xalloc_init(XALLOC_DAX_KMEM, true);
 }
 
 // Implement the xalloc_default_malloc_usable_size function
@@ -254,7 +371,7 @@ fn xalloc_arena_finalize(kind: *mut xalloc) -> i32 {
 }
 
 // Implement the xalloc_arena_get_kind_stat function
-fn xalloc_arena_get_kind_stat(kind: *mut xalloc, stat: memkind_stat_type, value: *mut usize) -> i32 {
+fn xalloc_arena_get_kind_stat(kind: *mut xalloc, stat: xalloc_stat_type, value: *mut usize) -> i32 {
     xalloc_arena_get_stat_with_check_init(kind, stat, false, value)
 }
 
@@ -293,8 +410,8 @@ fn xalloc_arena_defrag_reallocate(kind: *mut xalloc, ptr: *mut c_void) -> *mut c
     ptr::null_mut()
 }
 
-// Initialize MEMKIND_DAX_KMEM_OPS with the function pointers
-static MEMKIND_DAX_KMEM_OPS: XallocOps = XallocOps {
+// Initialize XALLOC_DAX_KMEM_OPS with the function pointers
+static XALLOC_DAX_KMEM_OPS: XallocOps = XallocOps {
     create: Some(xalloc_arena_create),
     destroy: Some(xalloc_default_destroy),
     malloc: Some(xalloc_arena_malloc),
@@ -315,13 +432,13 @@ static MEMKIND_DAX_KMEM_OPS: XallocOps = XallocOps {
 };
 
 fn main() {
-    // Use MEMKIND_DAX_KMEM_OPS as needed
+    // Use XALLOC_DAX_KMEM_OPS as needed
     let xalloc = std::ptr::null_mut();
     let name = std::ffi::CString::new("SomeName").unwrap().as_ptr();
     
     // Example: Call the create function
     let result = unsafe {
-        (MEMKIND_DAX_KMEM_OPS.create.unwrap())(xalloc, &MEMKIND_DAX_KMEM_OPS as *const _ as *mut _, name)
+        (XALLOC_DAX_KMEM_OPS.create.unwrap())(xalloc, &XALLOC_DAX_KMEM_OPS as *const _ as *mut _, name)
     };
     println!("Result: {}", result);
 }
