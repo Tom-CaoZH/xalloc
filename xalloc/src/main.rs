@@ -7,7 +7,7 @@ use std::ptr;
 
 fn main() {
     let normal_allocator = XAllocator::new(MemoryType::NORMAL);
-    let ex_mem_allocator = XAllocator::new(MemoryType::EX_MEM);
+    let ex_mem_allocator = XAllocator::new(MemoryType::EXMEM);
 
     // Allocate memory
     let normal_ptr = normal_allocator.allocate(100);
@@ -16,10 +16,10 @@ fn main() {
     // Write data to the memory
     let normal_data: &[u8] = b"Hello, NORMAL memory!";
     unsafe {
-        ptr::copy(non_ex_data.as_ptr(), normal_ptr, normal_data.len());
+        ptr::copy(normal_data.as_ptr(), normal_ptr, normal_data.len());
     }
 
-    let ex_mem_data: &[u8] = b"Hello, EX_MEM memory!";
+    let ex_mem_data: &[u8] = b"Hello, EXMEM memory!";
     unsafe {
         ptr::copy(ex_mem_data.as_ptr(), ex_mem_ptr, ex_mem_data.len());
     }
@@ -29,7 +29,7 @@ fn main() {
     let ex_mem_str = unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(ex_mem_ptr, ex_mem_data.len())) };
 
     println!("Data from NORMAL memory: {}", normal_str);
-    println!("Data from EX_MEM memory: {}", ex_mem_str);
+    println!("Data from EXMEM memory: {}", ex_mem_str);
 
     // Deallocate memory
     normal_allocator.deallocate(normal_ptr, 100);

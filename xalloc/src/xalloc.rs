@@ -1,13 +1,16 @@
 // src/xalloc.rs
+use tikv_jemalloc_sys;
 
-use jemallocator::Jemalloc;
+#[cfg(not(target_env = "msvc"))]
+use tikv_jemalloc_sys::{mallocx, malloc, free, MALLOCX_ARENA, MALLOCX_TCACHE, MALLOCX_TCACHE_NONE};
 
-#[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
+use std::mem;
+use std::os::raw::c_void;
+
 
 pub enum MemoryType {
     NORMAL,
-    EX_MEM,
+    EXMEM,
 }
 
 pub struct XAllocator {
@@ -23,13 +26,19 @@ impl XAllocator {
         match self.memory_type {
             MemoryType::NORMAL => {
                 // Allocate memory using the jemalloc allocator for NORMAL type
-                let ptr = unsafe { std::alloc::alloc(std::alloc::Layout::from_size_align(size, 1).unwrap()) };
+                let mut ptr: *mut c_void = std::ptr::null_mut();
+                unsafe {
+                    ptr = malloc(size);
+                }
                 if ptr.is_null() {
                     panic!("Memory allocation failed");
                 }
+                let ptr = unsafe {
+                    mem::transmute::<*mut c_void, *mut u8>(malloc(size))
+                };
                 ptr
             }
-            MemoryType::EX_MEM => {
+            MemoryType::EXMEM => {
                 // Implement EX_MEM allocation logic here
                 unimplemented!("EX_MEM allocation not implemented");
             }
@@ -41,10 +50,11 @@ impl XAllocator {
             MemoryType::NORMAL => {
                 // Deallocate memory using the jemalloc allocator for NORMAL type
                 unsafe {
-                    std::alloc::dealloc(ptr, std::alloc::Layout::from_size_align(size, 1).unwrap());
+                    let ptr = ptr as *mut c_void;
+                    free(ptr);
                 }
             }
-            MemoryType::EX_MEM => {
+            MemoryType::EXMEM => {
                 // Implement EX_MEM deallocation logic here
                 unimplemented!("EX_MEM deallocation not implemented");
             }
