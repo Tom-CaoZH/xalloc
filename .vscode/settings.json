@@ -1,0 +1,6 @@
+{
+    "rust-analyzer.linkedProjects": [
+        "./xalloc/Cargo.toml",
+        "./xalloc/Cargo.toml"
+    ]
+}
