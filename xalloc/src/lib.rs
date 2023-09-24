@@ -14,7 +14,7 @@ use std::os::raw::c_void;
 // use std::sync::Once;
 pub mod numa_rs;
 
-use numa_rs::{numa_available, numa_preferred, numa_alloc_onnode};
+use numa_rs::{numa_available, numa_preferred, numa_alloc_onnode, numa_free};
 
 pub enum MemoryType {
     NORMAL,
@@ -119,7 +119,9 @@ impl XAllocator {
             }
             MemoryType::EXMEM => {
                 // Implement EX_MEM deallocation logic here
-                unimplemented!("EX_MEM deallocation not implemented");
+                unsafe {
+                    numa_free(ptr as *mut c_void, size);
+                }
             }
         }
     }
