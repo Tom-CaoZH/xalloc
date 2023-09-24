@@ -3,8 +3,6 @@ use tikv_jemalloc_sys;
 
 extern crate nix;
 // use libnuma::numa;
-use std::process;
-use nix::sys::pthread::pthread_self;
 use std::os::raw::c_int;
 
 #[cfg(not(target_env = "msvc"))]
@@ -22,30 +20,30 @@ pub enum MemoryType {
 pub struct XAllocator {
     memory_type: MemoryType,
     // init_once: Once, 
-    arena_zero: usize,
-    arena_map_mask: usize, 
+    // arena_zero: usize,
+    // arena_map_mask: usize, 
 }
 
 
 impl XAllocator {
-    fn get_fs_base() -> usize {
-        pthread_self() as usize
-    }
+    // fn get_fs_base() -> usize {
+        // pthread_self() as usize
+    // }
 
-    fn xalloc_thread_get_arena(arena: &mut u32) {
-        let arena_idx = hash64(get_fs_base()) & self.arena_map_mask;
-        *arena = self.arena_zero + arena_idx;
-    }
+    // fn xalloc_thread_get_arena(arena: &mut u32) {
+        // let arena_idx = hash64(get_fs_base()) & self.arena_map_mask;
+        // *arena = self.arena_zero + arena_idx;
+    // }
 
-    fn allocate_ex_mem(size: usize) -> *mut u8 {
+    fn jeallocate_ex_mem(size: usize) -> *mut u8 {
         // Implement EX_MEM allocation logic here
         
         let mut arena: c_int = 0;
-        xalloc_thread_get_arena(&arena);
+        // xalloc_thread_get_arena(&arena);
         let flags = MALLOCX_ARENA(arena as usize);
         let mut ptr: *mut c_void = std::ptr::null_mut();
         unsafe {
-            ptr = mallocx(size, flag);
+            ptr = mallocx(size, flags);
         }
         if ptr.is_null() {
             panic!("EXMEM memory allocation failed");
@@ -54,6 +52,13 @@ impl XAllocator {
             mem::transmute::<*mut c_void, *mut u8>(malloc(size))
         };
         ptr
+    }
+
+    fn allocate_ex_mem(size: usize) -> *mut u8 {
+        // Implement EX_MEM allocation logic here
+        unimplemented!("EX_MEM allocation not implemented");
+
+        
     }
 
     pub fn new(memory_type: MemoryType) -> Self {
@@ -77,7 +82,7 @@ impl XAllocator {
                 ptr
             }
             MemoryType::EXMEM => {
-                allocate_ex_mem(size)
+                Self::allocate_ex_mem(size)
             }
         }
     }
