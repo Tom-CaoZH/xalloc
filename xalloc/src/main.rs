@@ -2,7 +2,7 @@
 
 mod xalloc;
 
-use xalloc::{XAllocator, MemoryType};
+use ::xalloc::{XAllocator, MemoryType};
 use std::ptr;
 
 fn main() {

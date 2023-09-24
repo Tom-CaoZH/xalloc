@@ -1,4 +1,5 @@
 // src/xalloc.rs
+//
 use tikv_jemalloc_sys;
 
 extern crate nix;
@@ -11,6 +12,7 @@ use tikv_jemalloc_sys::{mallocx, malloc, free, MALLOCX_ARENA};
 use std::mem;
 use std::os::raw::c_void;
 // use std::sync::Once;
+mod numa_rs;
 
 pub enum MemoryType {
     NORMAL,

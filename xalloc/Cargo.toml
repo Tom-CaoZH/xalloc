@@ -13,3 +13,8 @@ tikv-jemalloc-sys = "0.5"
 
 nix = "0.20.0"
 libc = "0.2.148"
+
+
+[lib]
+name = "xalloc"
+path = "src/xalloc.rs"
