@@ -12,7 +12,9 @@ use tikv_jemalloc_sys::{mallocx, malloc, free, MALLOCX_ARENA};
 use std::mem;
 use std::os::raw::c_void;
 // use std::sync::Once;
-mod numa_rs;
+pub mod numa_rs;
+
+use numa_rs::{numa_available, numa_preferred, numa_alloc_onnode};
 
 pub enum MemoryType {
     NORMAL,
@@ -58,7 +60,24 @@ impl XAllocator {
 
     fn allocate_ex_mem(size: usize) -> *mut u8 {
         // Implement EX_MEM allocation logic here
-        unimplemented!("EX_MEM allocation not implemented");
+        // Check if NUMA is available
+        let available = unsafe { numa_available() };
+        if available == -1 {
+            panic!("NUMA is not available.");
+        }
+
+        // Get the preferred NUMA node
+        let preferred_node = unsafe { numa_preferred() };
+        println!("Preferred NUMA node: {}", preferred_node);
+
+        // Allocate memory on the preferred NUMA node
+        let allocated_memory = unsafe { numa_alloc_onnode(size, preferred_node) };
+        if allocated_memory.is_null() {
+            panic!("Failed to allocate memory on the preferred NUMA node.");
+        }
+
+        // Convert the pointer to a mutable u8 pointer
+        allocated_memory as *mut u8
 
         
     }
