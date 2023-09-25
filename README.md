@@ -1,6 +1,6 @@
 # xalloc
 
-*Still under construction.*
+*Under construction.*
 
 This lib is used to allocate normal DRAM-based memory and CXL-based memory using Rust.
 
@@ -19,7 +19,7 @@ Generally, for normal DRAM-based memory, we add a wrapper above [jemalloc](https
 
 ## Examples
 
-You can see examples [here](https://github.com/Tom-CaoZH/xalloc/blob/master/xalloc/src/lib.rs)
+You can see examples [here](https://github.com/Tom-CaoZH/xalloc/blob/master/xalloc/src/lib.rs).
 
 ## Referrence
 
