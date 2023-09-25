@@ -19,7 +19,7 @@ Generally, for normal DRAM-based memory, we add a wrapper above [jemalloc](https
 
 ## Examples
 
-You can see examples [here](https://github.com/Tom-CaoZH/xalloc/blob/master/xalloc/src/lib.rs).
+You can see examples [here](https://github.com/Tom-CaoZH/xalloc/blob/master/xalloc/src/bin.rs).
 
 ## Referrence
 
@@ -27,4 +27,4 @@ You can see examples [here](https://github.com/Tom-CaoZH/xalloc/blob/master/xall
 
 [Simplified Interface to Complex Memory](https://github.com/lanl/SICM)
 
-[SMDK, Scalable Memory Development Kit](https://github.com/OpenMPDK/SMDK)
+[Scalable Memory Development Kit(SMDK)](https://github.com/OpenMPDK/SMDK)
