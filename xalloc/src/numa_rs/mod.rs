@@ -8,7 +8,10 @@ extern {
     pub fn numa_alloc_onnode(size: usize, node: i32) -> *mut c_void;
     pub fn numa_free(ptr: *mut c_void, size: usize);
     pub fn numa_preferred() -> i32;
-    // Add other libnuma function definitions here as needed
+
+    pub fn numa_node_of_cpu(cpu: c_int) -> c_int;
+    pub fn numa_num_configured_cpus() -> c_int;
+    pub fn numa_max_node() -> c_int;
 }
 
 // Wrapper functions
@@ -48,3 +51,22 @@ pub fn numa_preferred_wrapper() -> i32 {
     }
 }
 
+pub fn numa_node_of_cpu_wrapper(cpu: c_int) -> c_int {
+    unsafe {
+        numa_node_of_cpu(cpu)
+    }
+}
+
+
+pub fn numa_num_configured_cpus_wrapper() -> c_int {
+    unsafe {
+        numa_num_configured_cpus()
+    }
+}
+
+
+pub fn numa_max_node_wrapper() -> c_int {
+    unsafe {
+        numa_max_node()
+    }
+}
