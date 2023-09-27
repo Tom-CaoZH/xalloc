@@ -6,6 +6,8 @@ This lib is used to allocate normal DRAM-based memory and CXL-based memory using
 
 Generally, for normal DRAM-based memory, we add a wrapper above [jemalloc](https://github.com/tikv/jemallocator). For CXL-based memory, because CXL-based memory can be transfered into cpuless numa-node memory, we enable specific numa node memory allocation. 
 
+*To learn how to transfer simulated CXL-based memory into NUMA node memory, you can refer to [CXL Usage](https://github.com/Tom-CaoZH/CXL-101/blob/master/docs/CXL_Usage.md).*
+
 ## APIs
 
 ``fn new(memory_type: MemoryType) -> Self``
